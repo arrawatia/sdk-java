@@ -1,9 +1,10 @@
-package io.cloudevents.v02;
+package io.cloudevents.v03;
 
 import io.cloudevents.ExtensionFormat;
 
-import static java.lang.String.format;
-
+import javax.validation.ConstraintViolation;
+import javax.validation.Validation;
+import javax.validation.Validator;
 import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
@@ -11,9 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.Validation;
-import javax.validation.Validator;
+import static java.lang.String.format;
 
 /**
  * CloudEvent instances builder 
@@ -23,7 +22,7 @@ import javax.validation.Validator;
  */
 public class  CloudEventBuilder<T> {
 	
-	private static final String SPEC_VERSION = "0.2";
+	private static final String SPEC_VERSION = "0.3";
 	private static final String MESSAGE_SEPARATOR = ", ";
 	private static final String MESSAGE = "'%s' %s";
 	private static final String ERR_MESSAGE = "invalid payload: %s";
@@ -31,27 +30,40 @@ public class  CloudEventBuilder<T> {
 	private String type;
 	private String id;
 	private URI source;
-	
+	private String subject;
+
 	private ZonedDateTime time;
 	private URI schemaurl;
-	private String contenttype;
-	private T data;
-	
+	private String datacontenttype;
+	private String datacontentencoding;
 	private final Set<ExtensionFormat> extensions = new HashSet<>();
-	
+
+	private T data;
+
 	private Validator getValidator() {
 		return Validation.buildDefaultValidatorFactory().getValidator();
 	}
 
 	/**
-	 * 
+	 *
 	 * @return An new {@link CloudEvent} immutable instance
 	 * @throws IllegalStateException When there are specification constraints
 	 * violations
 	 */
 	public CloudEvent<T> build() {
-		CloudEvent<T> event = new CloudEvent<>(id, source, SPEC_VERSION, type,
-				time, schemaurl, contenttype, data, extensions);
+		CloudEvent<T> event = new CloudEvent<>(
+				SPEC_VERSION,
+				type,
+				source,
+				subject,
+				id,
+				time,
+				schemaurl,
+				datacontenttype,
+				datacontentencoding,
+				extensions,
+				data
+		);
 		
 		Set<ConstraintViolation<CloudEvent<T>>> violations =
 				getValidator().validate(event);
@@ -76,16 +88,22 @@ public class  CloudEventBuilder<T> {
 		return this;
 	}
 	
-	public CloudEventBuilder<T> withId(String id) {
-		this.id = id;
-		return this;
-	}
-	
+
 	public CloudEventBuilder<T> withSource(URI source) {
 		this.source = source;
 		return this;
 	}
-	
+
+	public CloudEventBuilder<T> withSubject(String subject) {
+		this.subject = subject;
+		return this;
+	}
+
+	public CloudEventBuilder<T> withId(String id) {
+		this.id = id;
+		return this;
+	}
+
 	public CloudEventBuilder<T> withTime(ZonedDateTime time) {
 		this.time = time;
 		return this;
@@ -96,11 +114,16 @@ public class  CloudEventBuilder<T> {
 		return this;
 	}
 	
-	public CloudEventBuilder<T> withContenttype(String contenttype) {
-		this.contenttype = contenttype;
+	public CloudEventBuilder<T> withDatacontenttype(String datacontenttype) {
+		this.datacontenttype = datacontenttype;
 		return this;
 	}
-	
+
+	public CloudEventBuilder<T> withDatacontentencoding(String datacontentencoding) {
+		this.datacontentencoding = datacontentencoding;
+		return this;
+	}
+
 	public CloudEventBuilder<T> withData(T data) {
 		this.data = data;
 		return this;

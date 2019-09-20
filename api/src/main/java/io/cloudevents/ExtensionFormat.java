@@ -1,4 +1,4 @@
-package io.cloudevents.v02;
+package io.cloudevents;
 
 import io.cloudevents.Extension;
 

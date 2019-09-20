@@ -20,13 +20,13 @@
     <parent>
         <groupId>io.cloudevents</groupId>
         <artifactId>cloudevents-parent</artifactId>
-        <version>0.2.2-SNAPSHOT</version>
+        <version>0.3.0-SNAPSHOT</version>
     </parent>
 
     <groupId>io.cloudevents</groupId>
     <artifactId>cloudevents-api</artifactId>
     <name>CloudEvents - API</name>
-    <version>0.2.2-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -35,6 +35,12 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
         </dependency>
 
         <dependency>
@@ -75,6 +81,7 @@
         <jackson.version>2.9.6</jackson.version>
         <hibernate-validator.version>6.0.17.Final</hibernate-validator.version>
         <javax.el.version>3.0.1-b11</javax.el.version>
+        <kafka.version>2.3.0</kafka.version>
     </properties>
 
 </project>

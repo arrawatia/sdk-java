@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import io.cloudevents.ExtensionFormat;
 import io.cloudevents.json.ZonedDateTimeDeserializer;
 
 /**

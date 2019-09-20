@@ -22,7 +22,8 @@ public enum SpecVersion {
 
     V_01("0.1"),
     V_02("0.2"),
-    DEFAULT(V_02.toString());
+    V_03("0.3"),
+    DEFAULT(V_03.toString());
 
     private final String version;
 
