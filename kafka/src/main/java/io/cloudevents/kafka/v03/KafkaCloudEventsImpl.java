@@ -15,53 +15,35 @@
  */
 package io.cloudevents.kafka.v03;
 
-import io.cloudevents.CloudEvent;
-import io.cloudevents.CloudEventBuilder;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.cloudevents.SpecVersion;
 import io.cloudevents.json.Json;
 import io.cloudevents.kafka.KafkaCloudEvents;
 import io.cloudevents.kafka.KafkaTransportHeaders;
+import io.cloudevents.v03.CloudEvent;
+import io.cloudevents.v03.CloudEventBuilder;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.Optional;
 
+import static io.cloudevents.kafka.KafkaTransportHeaders.getHeaderIfExists;
+import static io.cloudevents.kafka.KafkaTransportHeaders.getRequiredHeader;
+import static io.cloudevents.kafka.KafkaTransportHeaders.header;
 import static java.time.format.DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
 public final class KafkaCloudEventsImpl<T> implements KafkaCloudEvents<T> {
 
 
-    private final static String STRUCTURED_TYPE = "application/cloudevents+json";
-    private final static String CONTENT_TYPE = "content-type";
-
     private final Serde<T> serde;
 
     public KafkaCloudEventsImpl(Serde<T> serde) {
         this.serde = serde;
-    }
-
-    private Header header(String name, String value) {
-        byte[] valueAsBytes = ((Serde) Serdes.serdeFrom(String.class)).serializer().serialize(null, value);
-        return new RecordHeader(name, valueAsBytes);
-    }
-
-    private String getRequiredHeader(final Headers headers, final String headerName) {
-        return getHeaderIfExists(headers, headerName).orElseThrow(IllegalArgumentException::new);
-    }
-
-    private Optional<String> getHeaderIfExists(Headers headers, String headerKey) {
-        if (headers.lastHeader(headerKey) == null) {
-            return Optional.empty();
-        }
-        return Optional.of(Serdes.serdeFrom(String.class).deserializer().deserialize(null, headers.lastHeader(headerKey).value()));
     }
 
 
@@ -85,31 +67,37 @@ public final class KafkaCloudEventsImpl<T> implements KafkaCloudEvents<T> {
 
         // TL;DR - structured encoding only if ce_datacontenttype=application/cloudevents+json
 
+        boolean structured = false;
+        if (getHeaderIfExists(headers, CONTENT_TYPE).isPresent()) {
+            structured = getHeaderIfExists(headers, CONTENT_TYPE).get().equalsIgnoreCase(STRUCTURED_TYPE);
+        }
+        ;
 
-        if (getHeaderIfExists(headers, CONTENT_TYPE).get().equalsIgnoreCase(STRUCTURED_TYPE)) {
-            return Json.decodeCloudEvent(Serdes.String().deserializer().deserialize(record.topic(), record.value()));
+        if (structured) {
+            return Json.decodeValue(Serdes.String().deserializer().deserialize(record.topic(), record.value()), new TypeReference<CloudEvent<T>>() {
+            });
         } else {
 
             final KafkaTransportHeaders transportHeaders = KafkaTransportHeaders.getKafkaHeadersForSpec(SpecVersion.V_03);
 
 
-            builder.type(getRequiredHeader(headers, transportHeaders.typeKey()))
-                    .source(URI.create(getRequiredHeader(headers, transportHeaders.sourceKey())))
-                    .id(getRequiredHeader(headers, transportHeaders.idKey()));
+            builder.withType(getRequiredHeader(headers, transportHeaders.typeKey()))
+                    .withSource(URI.create(getRequiredHeader(headers, transportHeaders.sourceKey())))
+                    .withId(getRequiredHeader(headers, transportHeaders.idKey()));
 
             getHeaderIfExists(headers, transportHeaders.timeKey()).ifPresent(k ->
-                    builder.time(ZonedDateTime.parse(k, ISO_ZONED_DATE_TIME))
+                    builder.withTime(ZonedDateTime.parse(k, ISO_ZONED_DATE_TIME))
             );
             getHeaderIfExists(headers, transportHeaders.schemaUrlKey()).ifPresent(k ->
-                    builder.schemaURL(URI.create(k))
+                    builder.withSchemaurl(URI.create(k))
             );
             getHeaderIfExists(headers, transportHeaders.dataContentTypeKey()).ifPresent(k ->
-                    builder.dataContentType(k)
+                    builder.withDatacontenttype(k)
             );
 
 
             //todo: add extensions
-//                https://github.com/cloudevents/sdk-go/blob/master/pkg/cloudevents/transport/http/codec_v03.go#L236
+            // https://github.com/cloudevents/sdk-go/blob/master/pkg/cloudevents/transport/http/codec_v03.go#L236
 
 //                if (extensions != null && extensions.length > 0) {
 //
@@ -136,7 +124,7 @@ public final class KafkaCloudEventsImpl<T> implements KafkaCloudEvents<T> {
 //                    });
 //                }
 
-            builder.data(this.serde.deserializer().deserialize(null, headers, record.value()));
+            builder.withData(this.serde.deserializer().deserialize(null, headers, record.value()));
 
             return builder.build();
         }
@@ -149,14 +137,15 @@ public final class KafkaCloudEventsImpl<T> implements KafkaCloudEvents<T> {
         byte[] key = null;
         byte[] value = null;
 
+        //TODO(sumit): add a check that the payload in v0.3
 
         if (binary) {
 
-            final KafkaTransportHeaders transportHeaders = KafkaTransportHeaders.getKafkaHeadersForSpec(SpecVersion.fromVersion(cloudEvent.getSpecVersion()));
+            final KafkaTransportHeaders transportHeaders = KafkaTransportHeaders.getKafkaHeadersForSpec(SpecVersion.V_03);
 
             // read required headers
             // specversion
-            headers.add(header(transportHeaders.specVersionKey(), cloudEvent.getSpecVersion()));
+            headers.add(header(transportHeaders.specVersionKey(), SpecVersion.V_03.toString()));
             // type
             headers.add(header(transportHeaders.typeKey(), cloudEvent.getType()));
             // source
@@ -168,13 +157,13 @@ public final class KafkaCloudEventsImpl<T> implements KafkaCloudEvents<T> {
             // https://github.com/cloudevents/spec/blob/master/kafka-transport-binding.md#32-binary-content-mode
             // For the binary mode, the header ce_datacontenttype property MUST be mapped directly to the CloudEvents datacontenttype attribute.
 
-            if (cloudEvent.getDataContentType().isPresent()) {
-                headers.add(header(transportHeaders.dataContentTypeKey(), cloudEvent.getDataContentType().get()));
+            if (cloudEvent.getDatacontenttype().isPresent()) {
+                headers.add(header(transportHeaders.dataContentTypeKey(), cloudEvent.getDatacontenttype().get()));
             }
             // read optional headers
             // schema url
-            if (cloudEvent.getSchemaURL().isPresent()) {
-                headers.add(header(transportHeaders.schemaUrlKey(), cloudEvent.getSchemaURL().get().toString()));
+            if (cloudEvent.getSchemaurl().isPresent()) {
+                headers.add(header(transportHeaders.schemaUrlKey(), cloudEvent.getSchemaurl().get().toString()));
             }
 
             // time

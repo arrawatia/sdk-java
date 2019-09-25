@@ -1,5 +1,6 @@
 package io.cloudevents.v03;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.cloudevents.ExtensionFormat;
 import io.cloudevents.extensions.DistributedTracingExtension;
 import io.cloudevents.json.Json;
@@ -111,6 +112,23 @@ public class CloudEventJacksonTest {
 		// act
         CloudEvent<?> ce = Json.fromInputStream(resourceOf("03_new.json"), CloudEvent.class);
         
+        // assert
+        assertEquals("aws.s3.object.created", ce.getType());
+    }
+
+    @Test
+    public void should_have_type_string() {
+	    String input= "{\n" +
+                "  \"type\": \"aws.s3.object.created\",\n" +
+                "  \"time\": \"2018-04-26T14:48:09.769Z\",\n" +
+                "  \"source\": \"https://serverless.com\",\n" +
+                "  \"datacontenttype\": \"application/json\",\n" +
+                "  \"specversion\": \"0.3\",\n" +
+                "  \"id\": \"foo\"\n" +
+                "}";
+		// act
+        CloudEvent<?> ce = Json.decodeValue(input, new TypeReference<CloudEvent<?>>() {});
+
         // assert
         assertEquals("aws.s3.object.created", ce.getType());
     }

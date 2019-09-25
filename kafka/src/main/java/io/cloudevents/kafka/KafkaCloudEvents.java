@@ -15,11 +15,16 @@
  */
 package io.cloudevents.kafka;
 
-import io.cloudevents.CloudEvent;
+import io.cloudevents.v03.CloudEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 public interface KafkaCloudEvents<T> {
+
+
+    String STRUCTURED_TYPE = "application/cloudevents+json";
+    String CONTENT_TYPE = "content-type";
+
 
     ProducerRecord<byte[], byte[]> encode(CloudEvent<T> cloudEvent, boolean binary, String topic, int partition);
 
